@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+
+# Logs / outputs
+logs/
+audit_out/
+daily_report_out/
+paper_out/
+run.log
+*.log
+
+# Local config / secrets (必要なら)
+state.json
+CONTROL.csv
+ai_model.json
+news_block.csv
+
+# Trade logs (巨大化するので原則除外)
+trade_log_*.csv
+mae_mfe_summary_*.csv
