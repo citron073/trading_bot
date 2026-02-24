@@ -36,8 +36,8 @@ B. カラム契約（bot.py LOG_FIELDS に完全準拠 / 削除禁止）
 | 12 | ma_slow | number|string | △ | SMA slow（未算出は空） |
 | 13 | trend | string | △ | UP/DOWN/FLAT/UNKNOWN |
 | 14 | signal | string | △ | BUY_CANDIDATE/SELL_CANDIDATE/NONE |
-| 15 | pos_id | string | △ | PAPER/EXIT/HOLDでは必須（空は監査ERROR） |
-| 16 | note | string | △ | 自由記述。pos_id=... を埋め込みうる |
+| 15 | note | string | △ | 自由記述。AI score / exec/stage/order_id/filled / pos_id=... などを追記しうる |
+| 16 | pos_id | string | △ | PAPER/EXIT/HOLDでは必須（空は監査ERROR） |
 
 ------------------------------------------------------------
 C. pos_id 契約（bot.py 実装準拠）
@@ -70,6 +70,11 @@ E. 変更ルール
 - カラム削除・順序変更は禁止
 - result 名の改名は禁止（追加はOK）
 - spread_pct / limit_pct の単位（%値）を変更する場合は、REPORT/AUDIT SPEC 同時更新必須
+
+補足（LIVE互換）：
+- result名は既存契約を維持（PAPER / PAPER_EXIT_*）
+- 実行モード識別は `note` のタグで行う
+  - 例: `exec=LIVE stage=CANARY order_id=JRF... filled=0.00100000`
 
 ============================================================
 END OF SPEC

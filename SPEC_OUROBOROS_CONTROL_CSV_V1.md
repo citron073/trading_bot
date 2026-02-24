@@ -19,15 +19,19 @@ A. ファイル形式
 | unknown key | bot側では無視される（ただし snapshotには残る） |
 
 ------------------------------------------------------------
-B. 主要キー（build_runtime_config 実装準拠）
+B. 主要キー（bot.py 実装準拠）
 ------------------------------------------------------------
 
 | key | 型 | デフォルト | 説明 |
 |---|---|---:|---|
 | today_on | bool | true | 0なら当日停止（SKIP_TODAY_OFF） |
 | trade_enabled | bool | true | 0なら新規PAPERなし（OBSERVE_TRADE_DISABLED） |
-| paper_mode | bool | true | 予約（現状ログ用途） |
+| paper_mode | bool | true | 1=既存PAPER経路、0=LIVE候補（live_enabledと組み合わせ） |
 | observe_only | bool | false | 候補があってもOBSERVE_OK |
+| live_enabled | bool | false | 1 かつ paper_mode=0 の時だけLIVE発注経路を許可 |
+| rollout_mode | str | AUTO | AUTO/PAPER/CANARY/LIVE |
+| stage_paper_days | int | 3 | 段階導入のPAPER日数 |
+| stage_canary_days | int | 3 | 段階導入のCANARY日数 |
 | tp_buy_pct | float | 0.155 | TP%（BUY） |
 | tp_sell_pct | float | 0.180 | TP%（SELL） |
 | sl_pct | float | -0.220 | SL%（共通） |
@@ -42,14 +46,26 @@ B. 主要キー（build_runtime_config 実装準拠）
 | slow_n | int | 20 | SMA slow |
 | max_ltp_history | int | 200 | SMA履歴 |
 | lot | float | 0.001 | size |
+| canary_lot | float | 0.001 | CANARY段階のsize |
 | max_extend_count | int | 1 | EXTEND最大 |
 | extend_min | int | 30 | EXTEND分 |
 | extend_min_bestfav_pct | float | 0.08 | EXTEND条件 |
 | partial_tp_trigger_pct | float | 0.10 | PARTIAL条件 |
-| safety_hard_block | bool | true | 予約（現状は常時Hard Block実装） |
+| safety_hard_block | bool | true | 1で新規ENTRYを強制停止（OBSERVE_TRADE_DISABLED） |
+| daily_loss_limit_pct | float | -1.0 | 日次損失率しきい値（%）以下で新規ENTRY停止 |
+| limit_order_timeout_sec | int | 30 | 指値注文の待機秒数（未約定取消） |
+| limit_price_offset_ticks | int | 0 | 指値価格オフセット（tick単位） |
+| product_code | str | BTC_JPY | 発注対象 product_code |
+| market_type | str | SPOT | 市場区分メモ（SPOT/FX/OTHER） |
+| keychain_service | str | ouroboros.bitflyer | macOS keychain service名 |
+| keychain_account_key | str | api_key | API KEY用 account名 |
+| keychain_account_secret | str | api_secret | API SECRET用 account名 |
+| ai_auto_train_enabled | bool | true | 1なら日次1回のAI自動チューニングを実行 |
+| ai_auto_lookback_days | int | 45 | AI自動チューニングの参照日数（7以上） |
 
 （任意）AI緊急上書き：
-ai_enabled, ai_mode, ai_threshold, ai_debug（入っていれば上書き）
+ai_enabled, ai_mode（入っていれば上書き）
+※ `ai_threshold` / `ai_veto_threshold` は互換キーとして保持可（閾値本体は ai_model.json 側を優先）
 
 ------------------------------------------------------------
 C. 単位注意（重要）

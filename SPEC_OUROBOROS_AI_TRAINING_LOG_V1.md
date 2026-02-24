@@ -1,49 +1,70 @@
-# Project Ouroboros v1 — AI_TRAINING_LOG SPEC v1（実装準拠 / 現状の課題も明記）
+# Project Ouroboros v1 — AI_TRAINING_LOG SPEC v1.1（実装準拠）
 
 ============================================================
-対象：MAIN/ai_training_log.csv（学習用ログ）
-注意：現実装は「行ごとにfieldnamesが変わり得る」ため、集計側が壊れやすい。
-このSPECは “最終的に固定すべき列” を定義し、実装修正の基準とする。
+対象：logs/ai_training_log.csv（学習用ログ）
 ============================================================
 
 ------------------------------------------------------------
 A. 目的
 ------------------------------------------------------------
 
-- AI学習用の特徴量・結果（outcome）を pos_id 単位で蓄積
-- report/audit とは別系統（一次情報ではないが重要）
+- 1トレード（pos_id）につき1行で学習特徴量と結果を保存する
+- 日次AI自動チューニングの入力データとして利用する
 
 ------------------------------------------------------------
-B. 列（固定推奨：将来の必須列）
+B. ファイル契約
 ------------------------------------------------------------
 
-| column | 型 | 必須 | 説明 |
-|---|---|---:|---|
-| time | string | ✅ | JST |
-| pos_id | string | ✅ | |
-| phase | string | ✅ | ENTRY / EXIT |
-| side | string | ✅ | BUY/SELL |
-| entry_price | number | ✅ | |
-| exit_price | number | △ | EXITのみ |
-| tp_price | number | △ | |
-| sl_price | number | △ | |
-| ma_fast | number | △ | |
-| ma_slow | number | △ | |
-| trend | string | △ | |
-| signal | string | △ | |
-| ai_score | number|null | △ | |
-| best_fav | number | △ | |
-| extend_count | int | △ | |
-| outcome | string | △ | TP/SL/TIMEOUT/PARTIAL_TP/EOD |
+| 項目 | 契約 |
+|---|---|
+| パス | logs/ai_training_log.csv |
+| 文字コード | UTF-8 |
+| 形式 | CSV（ヘッダ固定） |
+| 追記条件 | EXIT確定時（PAPER_EXIT_*）に1行追記 |
+| 重複防止 | state の `_ai_train_logged_pos_ids` で同一 pos_id の重複追記を抑止 |
+| ヘッダ不整合 | 起動時に `.legacy_YYYYMMDDHHMMSS.csv` へ退避し新規ヘッダで再作成 |
 
 ------------------------------------------------------------
-C. 実装上の注意（現状の不整合）
+C. 固定カラム（順序固定）
 ------------------------------------------------------------
 
-- append_ai_training_log が fieldnames=row.keys() で可変 → 列順・列欠落が起こる
-- ensure_ai_training_log_header の fields と append の fields が一致していない可能性
+1. time  
+2. pos_id  
+3. side  
+4. entry_time  
+5. exit_time  
+6. hold_min  
+7. entry_price  
+8. exit_price  
+9. ret_pct  
+10. outcome  
+11. result  
+12. ai_score  
+13. ai_score_extend  
+14. spread_entry_pct  
+15. ma_gap_pct  
+16. ma_slope_pct_per_step  
+17. volatility_pct  
+18. trendline_slope_pct_per_step  
+19. channel_pos  
+20. channel_width_pct  
+21. trend  
+22. signal  
+23. best_fav  
+24. extend_count  
+25. exec_mode  
+26. stage
 
-このSPECに合わせて **列固定の追記方式**に統一するのが推奨。
+補足：
+- `ret_pct` は推定（fee未加味、SELLは符号反転）
+- `outcome` は `PAPER_EXIT_` プレフィックスを除いた値（TP/SL/TIMEOUT/EOD）
+
+------------------------------------------------------------
+D. 変更ルール
+------------------------------------------------------------
+
+- カラム削除・順序変更は禁止
+- カラム追加時は末尾追加を原則とし、bot / dashboard / SPECを同時更新
 
 ============================================================
 END OF SPEC

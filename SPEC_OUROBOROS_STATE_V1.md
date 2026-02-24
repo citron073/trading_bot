@@ -26,6 +26,9 @@ B. 主要キー（bot.py 実装準拠）
 | ltp_history | array[number] | △ | SMA用の価格履歴 |
 | _last_ltp | number | △ | 直近ltp |
 | _control_snapshot | object | △ | CONTROL/AI設定の保存（監査用） |
+| _ai_train_logged_pos_ids | array[string] | △ | ai_training_log 重複追記防止用の pos_id 履歴 |
+| _ai_auto_train_day | string | △ | AI日次自動チューニングを実行した日（YYYY-MM-DD） |
+| _ai_auto_train | object | △ | AI自動チューニング結果サマリ（rows/best_th/improve/applied 等） |
 | _tune_day | string | △ | tuningの採用日 |
 | _tune_win_min | int | △ | tuning採用WIN_MIN |
 | _tune_last_applied_day | string | △ | 1日1回適用 |
@@ -52,6 +55,9 @@ _open_pos は object のとき、最低限以下を持つ（無い場合は ERRO
 | best_fav | number | △ | 有利方向最大伸び（%） |
 | ai_score | number|null | △ | AI score |
 | ai_note | string | △ | AIログ |
+| trendline_slope_pct_per_step | number | △ | trendline傾き特徴量（%/step） |
+| channel_pos | number | △ | チャネル内の現在位置（0.0〜1.0） |
+| channel_width_pct | number | △ | チャネル幅（%） |
 | tune_note | string | △ | tuning情報 |
 
 ------------------------------------------------------------
