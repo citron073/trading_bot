@@ -308,6 +308,7 @@ CLAUDE.md（この文書）— 中央管理ハブ
 2. **`/version` で変更前バージョンを確認**（`bot.py` / `dashboard.py` / `widget_status.py` に変更を加える場合）
 3. **VM=正本**: 本番はVMが最新。**編集/デプロイ前に必ずVMから取得・差分確認**（古いローカルでVMを上書きしない）。`MAIN/` はgitサブモジュール(`citron073/MAIN`)、`.vm_snapshot/` は配備ステージング。
    - **git構造（2026-06-07 クリーンmain再構築済み）**: `citron073/MAIN` の正本ブランチは **`main`**（commit `214d310` / 487ファイル / 動画・別アプリ・運用出力を除外）。旧ブランチ既定 `fixapp/20260213-051546` は非推奨。**32GB肥大の原因（無関係な動画アプリyt_tool等）を含む全履歴は `sync/vm-fsync-20260606` に退避保持**。`.gitignore` で `*yt_tool*` / `*.mp4` / `action_reader/` / `reports/` / `local_ai/` / `tax_report/` 等を追跡停止済み。新たに別アプリ/大容量生成物を混入させないこと。
+   - **運用状態ファイルの追跡停止（2026-06-07）**: `MAIN/.ops_checks.json`（run_check.sh / spec_check.py が実行毎に書き換え＝state.json と同性質）を MAIN の `.gitignore` に追加し `git rm --cached`（disk保持）。pre-push フック実行のたびに MAIN submodule が dirty 化→親repo が `submodule modified` を出し続ける再発性の衛生問題を解消。MAIN commit `b5dead7` / 親 pointer `cdec5bb→b5dead7`（親 commit `519a5b0`）。
 
 ### 実装中
 4. `python3 -m py_compile` でシンタックスエラーなし
