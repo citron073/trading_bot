@@ -7,6 +7,10 @@ bot.py / state.json / ログ出力 の契約固定（実装基準）
 このSPECは **現在の bot.py 実装** を正とする。
 仕様変更（挙動・ログ・state構造）をする場合は **必ずこのSPECも同時更新**すること。
 
+現行実装バージョン（2026-04-18）：
+- `OUROBOROS_BOT_VERSION = 2026.04.18.2`
+- `OUROBOROS_FEATURE_SCHEMA_VERSION = ohlc-chart-pattern-quality-market-phase-transition-near-tp-aiba-phase-fallback-v1`
+
 用語：
 - MAIN = bot.py（ログ生成・state管理）
 - REPORT = daily_report.py 等（集計・可視化）
@@ -23,6 +27,10 @@ bot.py / state.json / ログ出力 の契約固定（実装基準）
 - “壊れたログ（混入/旧形式）” が audit を破壊しない自己修復（self-heal）を保証
 - AI学習ログ（ai_training_log.csv）を 1トレード=1行 で安定蓄積する
 - 日次1回のAI閾値自動更新（損小利大目的）を安全に実行する
+- 月次のAIしきい値再評価（PF/Expectancyゲート）を安全に実行する
+- AI自動更新は LIVE-only 学習・LIVE重み付け・新しいデータ優先重みを CONTROL で調整可能
+- AI自動更新後に CONTROL互換キー（`ai_threshold` / `ai_veto_threshold`）へ安全同期できる（許可キー限定）
+- AIサンプル不足時にLIVEロットを据え置く安全ガードを適用できる
 
 ------------------------------------------------------------
 1. bot.py の責務（固定）
@@ -56,6 +64,10 @@ bot.py が担わないもの：
 (3a) ai_training_log.csv のヘッダ整合を確認（不整合なら .legacy_* 退避して再作成）
 (4) ai_model.json 読込（欠損/壊れでも DEFAULT を deep-merge）
 (4a) AI日次自動チューニング（1日1回、改善時のみ ai_model.json 更新）
+     - `ai_auto_control_sync_enabled=1` のとき、`ai_threshold` / `ai_veto_threshold` を CONTROL.csv へ同期
+     - 同期対象は allowlist 固定（未知キーは更新しない）
+     - 書込失敗時はバックアップからロールバックし、botは継続
+     - `ai_monthly_reval_enabled=1` のとき、月1回だけ長期lookbackで再評価し、ゲート通過時のみ threshold を更新
 (5) runtime_cfg 構築（CONTROL/ai_model を吸収）
 (5a) effective_stage 判定（PAPER/CANARY/LIVE）
 (5b) LIVE有効時は risk guard 更新（日次損失率）
@@ -91,6 +103,7 @@ bot.py が担わないもの：
      (16c) SPREAD制限（超過は SKIP_SPREAD ログ→return）
      (16d) signal==NONE は OBSERVE_NO_SIGNAL ログ→return
      (16e) 日次上限（SKIP_DAILY_LIMIT ログ→return）
+     (16e-2) 連敗ストップ（有効時、当日N連敗到達で SKIP_DAILY_LIMIT + note=loss_streak_stop=1）
      (16f) no_paper_hours（OBSERVE_TIME_BLOCK ログ→return）
      (16g) SELL fast MA近接フィルタ（OBSERVE_SELL_FAST_MA_NEAR ログ→return）
      (16h) observe_only（OBSERVE_OK ログ→return）
@@ -103,6 +116,12 @@ LIVE互換ルール（固定）：
 - result名は従来の PAPER / PAPER_EXIT_* を維持する
 - LIVE実行時は note に `exec=LIVE stage=... order_id=... filled=...` を追記する
 - paper_mode=0 かつ live_enabled=1 のときのみLIVE発注経路を許可する
+- `exchange_name` で取引所を識別する（現行LIVE実装は bitflyer のみ）
+- `market_type=FX/CFD` の場合、ENTRY数量は
+  `collateral × fx_leverage × fx_collateral_use_ratio / entry_price` を上限として自動制限する
+- `ai_lot_lock_enabled=1` の場合、`_ai_auto_train.rows < ai_lot_lock_min_samples` の間は
+  ENTRY数量を `ai_lot_lock_max_lot` 以下に据え置く
+- `market_type=FX/CFD` の日次損失ガードは JPY残高ではなく collateral ベースで評価してよい
 
 ※ bot.py は標準出力に print しない（何も表示されないのが正常）
 
@@ -120,8 +139,15 @@ LIVE互換ルール（固定）：
 【OBSERVE系】
 - OBSERVE_NO_SIGNAL
 - OBSERVE_OK
+- OBSERVE_MR
+- OBSERVE_MR_FILTER_NG
+- OBSERVE_MR_TRIGGER
+- OBSERVE_PHASE_B
 - OBSERVE_TIME_BLOCK
+- OBSERVE_BUY_FAST_MA_NEAR
 - OBSERVE_SELL_FAST_MA_NEAR
+- OBSERVE_TREND_FLIP_COOLDOWN
+- OBSERVE_TREND_STRENGTH_WEAK
 - OBSERVE_TRADE_DISABLED
 - OBSERVE_AI_BLOCK
 
@@ -139,6 +165,7 @@ LIVE互換ルール（固定）：
 - PAPER_EXIT_TIMEOUT
 - PAPER_EXIT_PARTIAL_TP
 - PAPER_EXIT_EOD
+- PAPER_EXIT_PRENEWS
 
 【ERROR系】
 - ERROR_OPEN_POS_BROKEN
@@ -252,6 +279,14 @@ TIMEOUT判定（固定）：
   - EXTEND → 延長条件を満たすなら expiry延長（HOLD_OPEN_POS note=EXTENDED を出す）
             それ以外は PAPER_EXIT_TIMEOUT
 
+テクニカルEXIT（オプション）：
+- `exit_technical_enabled=1` のとき、SMAクロスでEXIT判定を行う
+- BUY保有中: fast が slow を上から下へクロスしたらEXIT
+- SELL保有中: fast が slow を下から上へクロスしたらEXIT
+- `exit_technical_only_paper=1` の場合、PAPER経路のみに適用する
+- `exit_technical_min_hold_min` 未満の保有時間では発火しない
+- result契約は維持し、`PAPER_EXIT_TIMEOUT` を使用する（`note` に `exit_tech=...` を記録）
+
 EXTEND回数の条件（固定）：
 - extend_count < max_extend_count の間だけ延長可能
 
@@ -266,12 +301,16 @@ EOD強制クローズ（固定）：
 8.1 安全性
 - state.json が欠損/破損でも bot は {} として安全起動する
 - 既存キーの削除・意味変更は禁止
+- 並行検証用に `OUROBOROS_INSTANCE=shadow` を使う場合、`state_shadow.json` / `CONTROL_shadow.csv` /
+  `logs/instances/shadow/` / `.run_lock_shadow/` を使って本番系と分離してよい（main既定契約は維持）
 
 8.2 主要キー（固定）
 - _open_pos : dict | absent
 - _control_snapshot : dict（保存できる場合）
 - _self_heal_last : dict（self-heal発動時のみ）
 - ltp_history : list[float]（MA算出用、最大長は cfg.max_ltp_history）
+- _ohlc_current : dict（内部生成中のOHLC足。open/high/low/close/ticksを持つ）
+- ohlc_history : list[dict]（確定済み内部OHLC足。チャートパターン検出用）
 - _last_ltp : float
 - _pos_seq_YYYYMMDD : int（pos_id 採番）
 - "YYYY-MM-DD" : int（日次トレード数カウンタ）
@@ -282,6 +321,10 @@ EOD強制クローズ（固定）：
 - _risk_realized_jpy : float
 - _risk_realized_pct : float
 - _risk_stop : bool
+- _streak_day : str（YYYY-MM-DD）
+- _streak_consecutive_losses : int
+- _streak_stop : bool
+- _streak_last_ret_pct : float | null
 - _pending_entry : dict（直近のENTRY注文状態）
 - _pending_exit : dict（直近のEXIT注文状態）
 - _ai_train_logged_pos_ids : list[str]（ai_training_log重複追記防止）
@@ -309,6 +352,53 @@ AIの介入点（固定）：
 特徴量（固定）：
 - 既存: spread / trend / ma_gap / ma_slope / volatility / time
 - 拡張: trendline_slope_pct_per_step / channel_pos / channel_width_pct
+- 拡張: ma_cross / RSI / Bollinger / ATR / trend_power / chart_pattern / market_phase / aiba_style
+
+チャート/OHLC特徴量（固定）：
+- `chart_pattern_enabled=1` の場合、tickerの `ltp` から内部OHLC足を生成する
+- 既定は `ohlc_timeframe_min=5`
+- `state._ohlc_current` は生成中の足、`state.ohlc_history` は確定済み足を保持する
+- 各OHLC足は `ticks` を持ち、足の薄さを判定する
+- `chart_pattern_min_bar_ticks` / `chart_pattern_quality_lookback_bars` で品質判定する
+- `cp_quality=OK` のときだけ `chart_pattern_comp` をAI scoreへ反映する
+- `cp_quality=THIN` はログ記録のみで、昇格判断やAI加点/減点に使わない
+- 初期対象パターンは `DOUBLE_TOP` / `DOUBLE_BOTTOM` / `HEAD_AND_SHOULDERS`
+- noteには `cp_name` / `cp_stage` / `cp_bias` / `cp_confirmed` / `cp_trend` / `cp_neckline` / `cp_quality` / `cp_avg_ticks` を埋め込める
+
+A/B/C局面特徴量（固定）：
+- `market_phase_enabled=1` の場合、MA傾き、MA乖離、直近レンジ幅から A/B/C 局面を判定する
+- MAだけで `NO_CLEAR_PHASE` になる場合、OHLCスイングと直近close変化から `SWING_UP` / `SWING_DOWN` / `OHLC_UP_SOFT` / `OHLC_DOWN_SOFT` / `OHLC_FLAT` の補助判定へフォールバックする
+- `phase=A` は下落局面、`phase=B` は横ばい局面、`phase=C` は上昇局面を表す
+- `phase=B` は原則避ける候補だが、強制ブロックは `market_phase_block_b_enabled=1` の時だけ行う
+- B局面ブロック時の result は `OBSERVE_PHASE_B`
+- 直前OHLC足の高値/安値を抜いた場合、`up_break=1` / `down_break=1` を note に残す
+- 局面方向とブレイク方向が一致した場合、`phase_momentum=UP_BREAK` または `phase_momentum=DOWN_BREAK` を残す
+- A/B/C局面が変わった場合、`state._market_phase` に現在局面・直近転換・転換時刻を保存し、note に `phase_transition=A->B` 形式で残す
+- AI score には `market_phase_comp` として軽い補助点だけを入れる。局面単独で発注しない
+- 日次レビューは `market_phase_outcomes` でA/B/C別の勝率、損益、TP/SL/TIMEOUT、break件数を集計する
+- 日次レビューは `market_phase_transition_counts` で `A->B` / `B->C` などの転換回数を集計する
+- `OBSERVE_PHASE_B` の件数は `observe_phase_b_n` として集計する
+
+shadow TP寸前戻しexit（固定）：
+- `near_tp_giveback_exit_enabled=1` の場合、TPの一定割合まで近づいた後に含み益を戻したpaper玉を `PAPER_EXIT_TIMEOUT` で閉じる
+- 理由は note の `exit_tech=NEAR_TP_GIVEBACK` で記録する
+- 既定はOFF。2026-04-18時点では `CONTROL_shadow.csv` のpaper-only検証だけON
+
+相場流 Phase 1 特徴量（固定）：
+- `aiba_style_enabled=1` の場合、相場式MA順序と傾きから補助ラベルを生成する
+- 対象は `KUCHIBASHI` / `REV_KUCHIBASHI`、`PPP` / `REV_PPP`、`aiba_9=1`、`aiba_try_fail=1`
+- `aiba_9=1` は9の法則の警戒フラグであり、単独exitは禁止
+- `aiba_try_fail=1` は高値未更新 + 終値下落の連続を示す観測ラベルであり、単独発注は禁止
+- AI score への反映は `aiba_style_ai_enabled=1` の時だけ `aiba_style_comp` として軽く加点/減点する。既定OFF
+- 下半身 / 逆下半身はOHLC実体判定の Phase 2 とし、Phase 1では未実装
+
+総合レビュー（固定）：
+- `tools/trade_system_review.py` はローカルログだけを読み取り、main/shadow/特徴量別成績/実効設定/未指定情報/勝てない仮説をJSON/Markdownで出す
+- `--write` の出力先は `MAIN/review_out/`
+- `--snapshot-dir .local_llm/vm_snapshot/latest` 指定時は、読み取り専用VM snapshot内の `logs/` と `MAIN/CONTROL.csv` を解析する
+- `feature_outcomes_top` は決済済みの特徴量別成績、`feature_presence_top` はOBSERVEを含むnote出現数として扱う
+- CONTROL.csv書込、VM service restart、外部API送信、secret読取は行わない
+- 設定変更やmain昇格の前に、このレビューまたは同等の証跡を確認する
 
 ai_model.json の読込（固定）：
 - DEFAULT を deep-merge して不足キーを補う
@@ -318,6 +408,14 @@ ai_model.json の読込（固定）：
 AI学習ログ（固定）：
 - PAPER_EXIT_* 確定時に ai_training_log.csv へ 1トレード1行を追記
 - 重複追記は state の pos_id 履歴で抑止
+
+AI自動チューニング重み付け（固定）：
+- `ai_train_live_only=1` の場合、`exec_mode=LIVE` の学習データのみを使用する
+- `ai_train_live_boost` で LIVE データの重みを増幅する（1.0〜3.0）
+- `ai_train_recent_halflife_days` で新しいデータを優先する指数重みを適用する
+- `ai_train_weekly_feedback_enabled=1` の場合、以下を追加適用する  
+  `ai_train_weekly_good_hours` は `ai_train_weekly_good_hour_boost` で増幅、  
+  `ai_train_weekly_bad_hours` は `ai_train_weekly_bad_hour_penalty` で減衰する
 
 ログへの反映（固定）：
 - AIによりブロックした場合、resultは SPEC外にせず OBSERVE_AI_BLOCK（推奨）

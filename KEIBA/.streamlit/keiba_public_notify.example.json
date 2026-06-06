@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "macos_notification": true,
+  "notify_on_recovery": true,
+  "notify_on_url_change": true,
+  "repeat_unhealthy_notification": true,
+  "min_interval_sec": 600,
+  "auto_restart_on_unhealthy": true,
+  "restart_cooldown_sec": 900,
+  "ntfy_topic_url": "",
+  "ntfy_bearer_token": "",
+  "webhook_url": "",
+  "webhook_bearer_token": ""
+}

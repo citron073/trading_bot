@@ -12,6 +12,8 @@ logs/
 audit_out/
 daily_report_out/
 paper_out/
+note_cms_data/
+review_out/
 run.log
 *.log
 
@@ -20,7 +22,28 @@ state.json
 CONTROL.csv
 ai_model.json
 news_block.csv
+KEIBA/.cloudflared/
+KEIBA/ci_logs/
+KEIBA/.streamlit/keiba_public_notify.json
+KEIBA/data/public_watch_state.json
 
 # Trade logs (巨大化するので原則除外)
 trade_log_*.csv
 mae_mfe_summary_*.csv
+
+# ── 親repo棚卸し 2026-06-07: 生成データ・別アプリ・配備ステージング・IDEを追跡停止 ──
+# KEIBA 生成データ/状態/モデル(ローカル稼働の正本=disk。git管理外)
+KEIBA/data/
+# KEIBA React開発雛形(KEIBA runtimeではないdev scaffold)
+KEIBA/react_harness_template/
+# 別アプリ note CMS(MAIN同様・独立管理)
+note_cms/
+note_cms_data/
+run_note_cms.py
+NOTE_CMS_*
+# 配備ステージング / IDE / バックアップ / MCP生成物
+.vm_snapshot/
+.playwright-mcp/
+.xcode-derived/
+.vscode/
+backups/

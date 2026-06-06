@@ -1,4 +1,4 @@
-# Project Ouroboros v1 — DASHBOARD SPEC v1.1 (Complete)
+# Project Ouroboros v1 — DASHBOARD SPEC v1.2 (Complete)
 
 ============================================================
 dashboard.py の表示・CONTROL・JSON連携 契約仕様
@@ -11,6 +11,7 @@ dashboard.py の表示・CONTROL・JSON連携 契約仕様
 Dashboardは表示・実行UIのみを担当する。
 
 - CONTROL.csv 編集UI
+- LIVE設定編集（market_type/product_code/fx_leverage/fx_collateral_use_ratio）
 - daily_report 実行ボタン
 - audit 実行ボタン
 - daily_report_out JSON 可視化
@@ -43,6 +44,7 @@ bot.py が唯一の判断主体である。
 保存時:
 - atomic write 推奨
 - 保存前にバックアップ作成（.bak）
+- 変更履歴（`dashboard_change_log.jsonl`）への追記に失敗した場合は保存を失敗扱いにし、CONTROLを書き戻す（未記録保存を禁止）
 
 ------------------------------------------------------------
 3. daily_report JSON 優先順位
@@ -188,6 +190,108 @@ fee未加味。
 - JSONキー変更時 → DAILY_REPORT_SPEC 更新必須
 - CONTROL仕様変更時 → MAIN_SPEC 更新必須
 - 表示構造変更時 → 本SPEC更新必須
+
+------------------------------------------------------------
+12. 認証・セキュリティ契約（OIDC主体）
+------------------------------------------------------------
+
+- 認証モードは `LOCAL / OIDC / AUTO` をサポートする
+- 通常運用は OIDC（Google/Apple）主体
+- `AUTO` 時のローカル認証は breakglass（緊急時）用途
+- breakglass制御キー（`dashboard_auth.json`）:
+  - `allow_breakglass_in_auto`（bool）
+  - `breakglass_daily_limit`（int, 1以上）
+- ローカル認証失敗はロック制御（`max_failures`, `lock_minutes`）を適用
+- 通知（`dashboard_security`）:
+  - `login_notify_enabled`
+  - `auth_fail_notify_enabled`
+  - `ntfy_topic_url` / `login_notify_webhook_url`
+
+------------------------------------------------------------
+13. 運用自動復旧契約（dashboard + ngrok）
+------------------------------------------------------------
+
+- launchdスクリプト:
+  - `MAIN/tools/install_dashboard_launchagent.sh`
+  - `MAIN/tools/uninstall_dashboard_launchagent.sh`
+  - `MAIN/tools/dashboard_ngrok_wrapper.sh`
+- `install` 後は RunAtLoad + KeepAlive で常駐再起動
+- ログ出力:
+  - `MAIN/ci_logs/launchd_dashboard_out.log`
+  - `MAIN/ci_logs/launchd_dashboard_err.log`
+  - `MAIN/ci_logs/dashboard_ngrok_wrapper.log`
+
+------------------------------------------------------------
+14. 取引通知契約（イベント通知）
+------------------------------------------------------------
+
+- 通知スクリプト: `MAIN/tools/trade_event_notifier.py`
+- 常駐化スクリプト:
+  - `MAIN/tools/install_trade_notifier_launchagent.sh`
+  - `MAIN/tools/uninstall_trade_notifier_launchagent.sh`
+- 通知対象:
+  - `PAPER`（ENTRY）
+  - `PAPER_EXIT_*`（EXIT）
+  - `_risk_stop` 状態変化
+  - `.run_lock` の runner 稼働状態変化
+- 設定は `secrets.toml` の `[dashboard_security]` を使用
+- 初回通知抑制（履歴洪水防止）を既定とし、`--bootstrap-send` で既存行通知を許可
+
+------------------------------------------------------------
+15. 成績分析KPI契約（推定）
+------------------------------------------------------------
+
+- `成績・分析` タブに以下を表示（推定・fee未加味）
+  - Expectancy
+  - Max Drawdown（PnL / ret_pct）
+  - 最大連敗
+  - テクニカルEXIT集計（`note` の `exit_tech=...` を理由別に集計）
+  - 時間帯サマリー（hourly: trades/win_rate/ret_sum/pnl_sum/avg_pnl）
+- すべてログ由来推定であり、正値は daily_report / audit を優先する
+
+------------------------------------------------------------
+16. 起動前セーフティゲート契約（LIVE）
+------------------------------------------------------------
+
+- `ホーム > bot 起動/停止` に `起動前セーフティゲート` を表示する
+- `LIVE売買条件`（`today_on=1 && trade_enabled=1 && paper_mode=0 && live_enabled=1 && observe_only=0 && safety_hard_block=0`）の時のみ、追加のLIVEガードを適用する
+- LIVEガードの必須条件:
+  - `live_preflight` の直近成功履歴があること（既定: 12時間以内）
+  - `run_check.sh` の直近成功履歴があること（既定: 12時間以内）
+  - `limit_order_timeout_sec` が 10〜180 秒
+  - `canary_lot <= lot`
+  - FX/CFD/LIGHTNING時に `fx_leverage <= 2.0`
+  - `daily_loss_limit_pct` が過度に緩くない（-5.0%未満はNG）
+- ガード違反時は `bot起動` / `CANARY起動` をブロックする
+- ガード結果は画面上に理由を列挙し、`live_preflight` / `run_check.sh` 実行ボタンで再判定できる
+- 実行履歴は `MAIN/.ops_checks.json` に保存し、Dashboardセッション再起動後も参照可能とする
+
+------------------------------------------------------------
+17. 週次AI提案の反映前後比較契約
+------------------------------------------------------------
+
+- `成績・分析` タブで `weekly_report` の `ai_feedback.suggested_control_updates` を反映した際、比較用スナップショットを `state.json` に保存する
+- 保存キー:
+  - `_weekly_ai_feedback_compare`
+- 保存内容（最低限）:
+  - `applied_at`
+  - `range_start8` / `range_end8`
+  - `summary`
+  - `suggested_control_updates`
+  - `before_last_day`
+  - `before_ai_auto`（`_ai_auto_train` の比較対象サブセット）
+- 画面表示:
+  - `status` は `比較待機中` / `更新済み` を表示
+  - `before/after/delta` をテーブル表示
+  - `status` 列に `UP / DOWN / SAME / REF / CHANGED` を表示
+- 改善判定対象（正方向ほど良い）:
+  - `current_metric`
+  - `best_metric`
+  - `improve`
+  - `backtest_gate_eval_pf`
+  - `backtest_gate_eval_expectancy`
+- `比較スナップショットをクリア` 操作で `_weekly_ai_feedback_compare` を削除できる
+- この比較は運用補助表示であり、売買判断の正値は bot / report 契約を優先する
 
 ============================================================
 END OF SPEC
