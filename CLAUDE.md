@@ -141,6 +141,10 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `progress_reversal_exit_min_best_fav_pct` | 0.10 | 0.10%含み益で反転検知（0.08→0.06→0.10、2026-05-28 緩和）|
 | `no_follow_through_exit_min_hold_min` | 8 | フォロースルー判定の最小保持時間（3→8、2026-05-28 緩和）|
 | `no_follow_through_exit_max_best_fav_pct` | 0.05 | 0.05%以内の微小利益から戻した場合に早期撤退（0.01→0.03→0.05、2026-05-28 緩和）|
+| `chop_filter_enabled` | 1 | chop回避レジームゲート有効（2026-06-07追加・bot v2026.06.07.1）|
+| `chop_filter_mode` | observe | observe=記録のみ(実取引不変) / block=実遮断。**検証後にblock化予定** |
+| `chop_require_weak_trend` | 1 | chop判定に trend_power_regime==weak を必須化 |
+| `chop_block_atr_regimes` | low | chop扱いする atr_regime（ATR低=レンジ）。ATR低×トレンド弱でエントリー遮断 |
 
 ## 現在のキーパラメータ（IBKR_CONTROL.csv）
 
