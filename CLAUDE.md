@@ -161,7 +161,8 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `ibkr_max_trades_per_day` | 6 | 1日最大取引数（6銘柄対応後に増加） |
 | `ibkr_vix_block_threshold` | 30 | VIX恐怖指数ゲート（VIX≥30でエントリーブロック） |
 | `ibkr_start_hour_et` / `ibkr_end_hour_et` | 9:45 – 15:50 ET | 取引時間帯 |
-| `ibkr_atr_sl_multiplier` | 0(未設定) | **[B/P1対策・gated]** ATRベース損切り倍率（2026-06-11追加・bot v2026.06.11.2）。0=固定`ibkr_sl_pct`維持。>0で`SL=ATR×倍率`(より負=ワイドの時のみ採用)＝固定-0.5%がATRノイズより狭く狩られる構造欠陥の修正。**Phase3バックテスト検証後に有効化予定**。R:R維持は`ibkr_atr_tp_multiplier`を2倍に |
+| `ibkr_atr_sl_multiplier` | **2.0(有効)** | **[B/P1対策]** ATRベース損切り倍率（2026-06-11追加・bot v2026.06.11.2）。`SL=max(0.5, ATR%×2.0)`(より負=ワイドの時のみ採用)＝固定-0.5%がATRノイズより狭く狩られる構造欠陥の修正。**Phase3バックテストで検証→2026-06-11有効化**（735トレードで固定SL負け期待値-7.50%→ATR-SL ×2.0で+12〜18%）。次営業日から発効 |
+| `ibkr_atr_tp_multiplier` | 4.0 | ATRベースTP倍率。`TP=max(1.0, ATR%×4.0)`。B案(sl_mult=2.0)とR:R 2:1維持のため 1.5→4.0 に変更（2026-06-11） |
 | `ibkr_sell_daily_move_block_pct` | -2.0 | **[A/P3対策・observe]** SELL対称ガード（2026-06-11追加・bot v2026.06.11.2）。日中既に`daily_move<=この値`の過伸び下落でSELL(空売り)を記録/遮断。0=無効。BUYのみ存在した落ちるナイフ回避をSELL側にも |
 | `ibkr_sell_daily_move_block_mode` | observe | observe=記録のみ(実取引不変・`SELL_DM_OBSERVE`ログ) / block=実遮断。**検証後にblock化予定** |
 
