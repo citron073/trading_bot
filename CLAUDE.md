@@ -143,8 +143,9 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `no_follow_through_exit_max_best_fav_pct` | 0.05 | 0.05%以内の微小利益から戻した場合に早期撤退（0.01→0.03→0.05、2026-05-28 緩和）|
 | `chop_filter_enabled` | 1 | chop回避レジームゲート有効（2026-06-07追加・bot v2026.06.07.1）|
 | `chop_filter_mode` | observe | observe=記録のみ(実取引不変) / block=実遮断。**検証後にblock化予定** |
-| `chop_require_weak_trend` | 1 | chop判定に trend_power_regime==weak を必須化 |
-| `chop_block_atr_regimes` | low | chop扱いする atr_regime（ATR低=レンジ）。ATR低×トレンド弱でエントリー遮断 |
+| `chop_require_weak_trend` | 0 | chop判定のweak必須を解除（2026-06-07: weak条件がtrend_strength(ER<0.30)と重複しchopが発火不能だったため。ATR低単独でobserve記録に変更）|
+| `chop_block_atr_regimes` | low | **[legacy]** 旧atr_regime方式（AIスコア用atr_low_pct=0.04がBTC実測min=0.0526を下回り無発火だった）。`chop_atr_low_pct`へ移行 |
+| `chop_atr_low_pct` | 0.08 | chop専用ATR閾値（2026-06-10追加・bot v2026.06.10.1）。AIスコア用atr_low_pctから分離。BTC実測 min=0.0526/median=0.1048/p25≒0.08。`atr_pct<=0.08`でchop扱い→observe記録 |
 
 ## 現在のキーパラメータ（IBKR_CONTROL.csv）
 
@@ -313,6 +314,9 @@ CLAUDE.md（この文書）— 中央管理ハブ
 3. **VM=正本**: 本番はVMが最新。**編集/デプロイ前に必ずVMから取得・差分確認**（古いローカルでVMを上書きしない）。`MAIN/` はgitサブモジュール(`citron073/MAIN`)、`.vm_snapshot/` は配備ステージング。
    - **git構造（2026-06-07 クリーンmain再構築済み）**: `citron073/MAIN` の正本ブランチは **`main`**（commit `214d310` / 487ファイル / 動画・別アプリ・運用出力を除外）。旧ブランチ既定 `fixapp/20260213-051546` は非推奨。**32GB肥大の原因（無関係な動画アプリyt_tool等）を含む全履歴は `sync/vm-fsync-20260606` に退避保持**。`.gitignore` で `*yt_tool*` / `*.mp4` / `action_reader/` / `reports/` / `local_ai/` / `tax_report/` 等を追跡停止済み。新たに別アプリ/大容量生成物を混入させないこと。
    - **運用状態ファイルの追跡停止（2026-06-07）**: `MAIN/.ops_checks.json`（run_check.sh / spec_check.py が実行毎に書き換え＝state.json と同性質）を MAIN の `.gitignore` に追加し `git rm --cached`（disk保持）。pre-push フック実行のたびに MAIN submodule が dirty 化→親repo が `submodule modified` を出し続ける再発性の衛生問題を解消。MAIN commit `b5dead7` / 親 pointer `cdec5bb→b5dead7`（親 commit `519a5b0`）。
+3.5. **メモリ/引き継ぎ要約を鵜呑みにしない（実ファイル裏取り必須・2026-06-10 教訓）**: claude-mem の観測や前チャットの引き継ぎ要約に「適用済み/デプロイ済み」とあっても**そのまま信じない**。着手前に必ず**実ファイルの grep・version・git status を local と VM の両方で突き合わせ**、実態を一次情報として確認してから動く。
+   - 背景: 2026-06-10、書式エラーで未実行に終わった bot.py 編集を haiku 生成の観測(obs 1169)が「適用済み」と誤記録。実ファイルは旧ロジックのままだった。実態確認していなければ二重適用・破損を招いていた。
+   - 手順: ①対象シンボルを `grep -n` で local/VM 両方確認 ②`OUROBOROS_BOT_VERSION` を両者照合 ③`git status -s` がクリーンか ④矛盾があれば**実ファイルを正**としメモリ記録は疑う。
 
 ### 実装中
 4. `python3 -m py_compile` でシンタックスエラーなし
