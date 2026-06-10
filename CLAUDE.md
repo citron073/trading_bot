@@ -101,8 +101,10 @@ CLAUDE.md（この文書）— 中央管理ハブ
   │   │              100点減点方式スコアリング・パラメータ自動改善（毎週日曜20:30 JST）
   │   ├── /ibkr-guardian — IBKR安全監視エージェント
   │   │              日次P&L・オープンポジション・損失限界・サービス稼働確認
-  │   └── /council  — 投資円卓会議エージェント [NEW]
-  │                  実在投資家11人の思想トレース・ALL-YESゲート・週次DD固定（note記事ベース）
+  │   ├── /council  — 投資円卓会議エージェント [NEW]
+  │   │              実在投資家11人の思想トレース・ALL-YESゲート・週次DD固定（note記事ベース）
+  │   └── /protrader — プロトレーダーAgent [NEW 2026-06-11]
+  │                  知識ベース(docs/trading_knowledge/)実装。直近取引を100点採点・bot批評・改善提案
   │
   └─── [KEIBA — 競馬予測システム]
       └── /keiba    — KEIBA状態確認エージェント
@@ -165,6 +167,8 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `ibkr_atr_tp_multiplier` | 4.0 | ATRベースTP倍率。`TP=max(1.0, ATR%×4.0)`。B案(sl_mult=2.0)とR:R 2:1維持のため 1.5→4.0 に変更（2026-06-11） |
 | `ibkr_sell_daily_move_block_pct` | -2.0 | **[A/P3対策・observe]** SELL対称ガード（2026-06-11追加・bot v2026.06.11.2）。日中既に`daily_move<=この値`の過伸び下落でSELL(空売り)を記録/遮断。0=無効。BUYのみ存在した落ちるナイフ回避をSELL側にも |
 | `ibkr_sell_daily_move_block_mode` | observe | observe=記録のみ(実取引不変・`SELL_DM_OBSERVE`ログ) / block=実遮断。**検証後にblock化予定** |
+| `ibkr_min_atr_pct_entry` | 0.20 | **[P2レジーム対策・observe]** ATR下限エントリーフィルタ（2026-06-11追加・bot v2026.06.11.3）。`atr%<この値`の低ボラ(チョップ)でSMAクロスはwhipsay負け→記録/遮断。0=無効。バックテストで`ATR%≥0.20`が有効と確認 |
+| `ibkr_min_atr_pct_entry_mode` | observe | observe=記録のみ(`LOW_ATR_OBSERVE`ログ) / block=実遮断。**検証後block化予定** |
 
 ### IBKR live切り替え手順（口座入金後）
 1. 口座に資金が入ったことを確認
