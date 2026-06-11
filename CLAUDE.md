@@ -169,6 +169,8 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `ibkr_sell_daily_move_block_mode` | observe | observe=記録のみ(実取引不変・`SELL_DM_OBSERVE`ログ) / block=実遮断。**検証後にblock化予定** |
 | `ibkr_min_atr_pct_entry` | 0.20 | **[P2レジーム対策・observe]** ATR下限エントリーフィルタ（2026-06-11追加・bot v2026.06.11.3）。`atr%<この値`の低ボラ(チョップ)でSMAクロスはwhipsay負け→記録/遮断。0=無効。バックテストで`ATR%≥0.20`が有効と確認 |
 | `ibkr_min_atr_pct_entry_mode` | observe | observe=記録のみ(`LOW_ATR_OBSERVE`ログ) / block=実遮断。**検証後block化予定** |
+| `ibkr_trend_align_ma_n` | 250 | **[P2本命・observe]** トレンド整合フィルタ（2026-06-11追加・bot v2026.06.11.4）。1分足MA250(≈5分足MA50=250分)に対しBUY=価格>MA&MA上昇/SELL=価格<MA&MA下降のみ許可、逆行クロスを記録/遮断。0=無効。**バックテストでウォークフォワード通過した唯一のフィルタ**（負け期間Feb-Apr5を-20.54%→+44.64%に転換・全期間+97.77%） |
+| `ibkr_trend_align_mode` | observe | observe=記録のみ(`TREND_ALIGN_OBSERVE`ログ) / block=実遮断。**検証後block化予定（最優先候補）** |
 
 ### IBKR live切り替え手順（口座入金後）
 1. 口座に資金が入ったことを確認
