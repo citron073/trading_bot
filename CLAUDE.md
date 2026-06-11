@@ -173,6 +173,8 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `ibkr_min_atr_pct_entry_mode` | observe | observe=記録のみ(`LOW_ATR_OBSERVE`ログ) / block=実遮断。**検証後block化予定** |
 | `ibkr_trend_align_ma_n` | 250 | **[P2本命・observe]** トレンド整合フィルタ（2026-06-11追加・bot v2026.06.11.4）。1分足MA250(≈5分足MA50=250分)に対しBUY=価格>MA&MA上昇/SELL=価格<MA&MA下降のみ許可、逆行クロスを記録/遮断。0=無効。**バックテストでウォークフォワード通過した唯一のフィルタ**（負け期間Feb-Apr5を-20.54%→+44.64%に転換・全期間+97.77%） |
 | `ibkr_trend_align_mode` | observe | observe=記録のみ(`TREND_ALIGN_OBSERVE`ログ) / block=実遮断。**検証後block化予定（最優先候補）** |
+| `ibkr_donchian_observe_n` | 250 | **[エントリー候補・observe]** ドンチャン・ブレイクアウト観測（2026-06-12追加・bot v2026.06.12.1）。直近250本(1分足=5分足N50equiv)の高値超え=BUY/安値割れ=SELLを`DONCHIAN_OBSERVE`で記録のみ。検証5で全戦略中最強(+164.50%・WF両期間プラス)。実環境でシグナル頻度・SMA一致率・スリッページを観測→採用判断。0=無効 |
+| `ibkr_donchian_observe_cooldown_min` | 30 | 同一symbol×sideのDONCHIAN_OBSERVE再記録までの冷却分数（連続ブレイクのログ洪水防止） |
 
 ### IBKR live切り替え手順（口座入金後）
 1. 口座に資金が入ったことを確認
