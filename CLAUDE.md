@@ -148,6 +148,8 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `chop_require_weak_trend` | 0 | chop判定のweak必須を解除（2026-06-07: weak条件がtrend_strength(ER<0.30)と重複しchopが発火不能だったため。ATR低単独でobserve記録に変更）|
 | `chop_block_atr_regimes` | low | **[legacy]** 旧atr_regime方式（AIスコア用atr_low_pct=0.04がBTC実測min=0.0526を下回り無発火だった）。`chop_atr_low_pct`へ移行 |
 | `chop_atr_low_pct` | 0.08 | chop専用ATR閾値（2026-06-10追加・bot v2026.06.10.1）。AIスコア用atr_low_pctから分離。BTC実測 min=0.0526/median=0.1048/p25≒0.08。`atr_pct<=0.08`でchop扱い→observe記録 |
+| `atr_sl_multiplier` | **LIVE未設定(0=不変) / Shadow=2.0** | **[Shadow先行検証]** ATRベース損切り倍率（2026-06-12追加・bot v2026.06.12.1）。`SL=-(ATR%×倍率)`を固定sl_pct(-0.14%)よりワイドの時のみ採用(only-widen)。5年バックテストで固定SLは-137%一貫負け→ATR×2.0で+134%・年次WF5/5通過（trading_knowledge/06 検証4）。**CONTROL_shadow.csvのみ有効・LIVE適用は検証後に別途承認** |
+| `atr_tp_multiplier` | LIVE未設定(0) / Shadow=4.0 | ATRベースTP倍率。`TP=ATR%×倍率`を固定TPより大きい時のみ採用（sl=2.0とセットでR:R 2:1維持） |
 
 ## 現在のキーパラメータ（IBKR_CONTROL.csv）
 
