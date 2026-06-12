@@ -170,7 +170,7 @@ CLAUDE.md（この文書）— 中央管理ハブ
 | `ibkr_sell_daily_move_block_pct` | -2.0 | **[A/P3対策・observe]** SELL対称ガード（2026-06-11追加・bot v2026.06.11.2）。日中既に`daily_move<=この値`の過伸び下落でSELL(空売り)を記録/遮断。0=無効。BUYのみ存在した落ちるナイフ回避をSELL側にも |
 | `ibkr_sell_daily_move_block_mode` | observe | observe=記録のみ(実取引不変・`SELL_DM_OBSERVE`ログ) / block=実遮断。**検証後にblock化予定** |
 | `ibkr_min_atr_pct_entry` | 0.20 | **[P2レジーム対策・observe]** ATR下限エントリーフィルタ（2026-06-11追加・bot v2026.06.11.3）。`atr%<この値`の低ボラ(チョップ)でSMAクロスはwhipsay負け→記録/遮断。0=無効。バックテストで`ATR%≥0.20`が有効と確認 |
-| `ibkr_min_atr_pct_entry_mode` | observe | observe=記録のみ(`LOW_ATR_OBSERVE`ログ) / block=実遮断。**検証後block化予定** |
+| `ibkr_min_atr_pct_entry_mode` | **block** | **2026-06-12 block化**。根拠: 6/12の負け2件(AMT/CAT・全敗9連敗中)をエントリー3秒前にLOW_ATR_OBSERVEが事前警告していた(atr%=0.106/0.155<0.20)＝block化していれば防げた。バックテスト(ATR%≥0.20で全構成改善)とライブ観測が一致 |
 | `ibkr_trend_align_ma_n` | 250 | **[P2本命・observe]** トレンド整合フィルタ（2026-06-11追加・bot v2026.06.11.4）。1分足MA250(≈5分足MA50=250分)に対しBUY=価格>MA&MA上昇/SELL=価格<MA&MA下降のみ許可、逆行クロスを記録/遮断。0=無効。**バックテストでウォークフォワード通過した唯一のフィルタ**（負け期間Feb-Apr5を-20.54%→+44.64%に転換・全期間+97.77%） |
 | `ibkr_trend_align_mode` | observe | observe=記録のみ(`TREND_ALIGN_OBSERVE`ログ) / block=実遮断。**検証後block化予定（最優先候補）** |
 | `ibkr_donchian_observe_n` | 250 | **[エントリー候補・observe]** ドンチャン・ブレイクアウト観測（2026-06-12追加・bot v2026.06.12.1）。直近250本(1分足=5分足N50equiv)の高値超え=BUY/安値割れ=SELLを`DONCHIAN_OBSERVE`で記録のみ。検証5で全戦略中最強(+164.50%・WF両期間プラス)。実環境でシグナル頻度・SMA一致率・スリッページを観測→採用判断。0=無効 |
