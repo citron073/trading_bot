@@ -8,7 +8,7 @@
 | システム | 場所 | 用途 | 状態 |
 |---------|------|------|------|
 | **MAIN** | `MAIN/` | bitFlyer BTC 自動売買ボット | 本番稼働中 (LIVE) |
-| **IBKR** | `MAIN/ibkr_bot.py` | IBKR 米株自動売買ボット | PAPER稼働中（未入金） |
+| **IBKR** | `MAIN/ibkr_bot.py` | IBKR 米株自動売買ボット | LIVE稼働中（実弾・少額/1株・port7496・要日次2FA） |
 | **KEIBA** | `KEIBA/` | JRA 競馬予測・採点・LLM分析 | ローカル稼働中 |
 
 各システムの詳細コンテキスト:
